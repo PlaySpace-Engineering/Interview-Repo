@@ -15,8 +15,6 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { SEEDED_CLINICIAN_ID } from "@/lib/constants";
 import { formatTime, formatDate } from "@/lib/format";
 
-export const dynamic = "force-dynamic";
-
 export default async function DashboardPage() {
   const sb = await createSupabaseServerClient();
 
