@@ -91,6 +91,8 @@ export async function signNoteAction(noteId: string) {
     .single();
   if (!note || note.locked) return;
 
+  await new Promise((r) => setTimeout(r, 50));
+
   const { error } = await sb
     .from("progress_notes")
     .update({ signed_at: new Date().toISOString(), locked: true })
