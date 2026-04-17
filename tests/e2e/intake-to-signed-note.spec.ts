@@ -49,6 +49,8 @@ test("new client → intake → signed SOAP note", async ({ page }) => {
   await page.getByLabel("Assessment").fill("MDD, mild — continued response to weekly CBT.");
   await page.getByLabel("Plan").fill("Continue weekly CBT, PHQ-9 next session.");
 
+  await page.getByLabel(/Suicidal ideation endorsed/).check();
+
   // Sign via AlertDialog
   await page.getByRole("button", { name: "Sign & lock note" }).click();
   await page.getByRole("button", { name: "Yes, sign & lock" }).click();
@@ -56,6 +58,8 @@ test("new client → intake → signed SOAP note", async ({ page }) => {
   // Note detail — signed state
   await expect(page.getByRole("heading", { name: "Progress note" })).toBeVisible();
   await expect(page.getByText(/signed · locked/)).toBeVisible();
+
+  await expect(page.getByText("SI: yes", { exact: false })).toBeVisible();
 
   // Sign button should not exist on the page once locked.
   await expect(page.getByRole("button", { name: /^Sign & lock$/ })).toHaveCount(0);

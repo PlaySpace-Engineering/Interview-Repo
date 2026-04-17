@@ -8,7 +8,7 @@ import { parseNoteContent, type NoteContent } from "@/lib/validation/note";
 
 type Draft = NoteContent & {
   interventions: string[];
-  risk: { si: boolean; hi: boolean; self_harm: boolean };
+  risk: Record<string, boolean>;
 };
 
 function parseDraft(formData: FormData): Draft {
@@ -36,7 +36,7 @@ function parseDraft(formData: FormData): Draft {
     ...parsed,
     interventions,
     risk: {
-      si: formData.get("si") === "on",
+      suicidal: formData.get("si") === "on",
       hi: formData.get("hi") === "on",
       self_harm: formData.get("self_harm") === "on",
     },
