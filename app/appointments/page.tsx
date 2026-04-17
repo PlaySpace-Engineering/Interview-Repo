@@ -36,7 +36,7 @@ export default async function AppointmentsPage() {
   }
   (appts ?? []).forEach((a) => {
     const k = new Date(a.start_at).toDateString();
-    byDay[k]?.push(a);
+    byDay[k].push(a);
   });
 
   return (
