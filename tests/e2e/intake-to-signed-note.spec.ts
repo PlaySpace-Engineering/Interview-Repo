@@ -53,6 +53,7 @@ test("new client → intake → signed SOAP note", async ({ page }) => {
 
   // Sign via AlertDialog
   await page.getByRole("button", { name: "Sign & lock note" }).click();
+  await expect(page.getByRole("alertdialog")).toBeVisible();
   await page.getByRole("button", { name: "Yes, sign & lock" }).click();
 
   // Note detail — signed state
