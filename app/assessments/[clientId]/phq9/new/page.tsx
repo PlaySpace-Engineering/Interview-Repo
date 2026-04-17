@@ -28,8 +28,6 @@ export default async function AdministerPHQ9Page({
     .maybeSingle();
   if (!client) notFound();
 
-  const bound = submitPHQ9Action.bind(null, clientId);
-
   return (
     <Flex direction="column" gap="5">
       <Box>
@@ -40,7 +38,7 @@ export default async function AdministerPHQ9Page({
       </Box>
 
       <Card size="3">
-        <form action={bound}>
+        <form action={submitPHQ9Action}>
           <Flex direction="column" gap="5">
             {PHQ9_ITEMS.map((prompt, i) => (
               <Box key={i}>
