@@ -1,0 +1,12 @@
+/* Keep this file small — Radix Themes owns most visual tokens. */
+html,
+body {
+  margin: 0;
+  padding: 0;
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  background: var(--gray-1);
+}
+
+a {
+  color: var(--indigo-11);
+}
