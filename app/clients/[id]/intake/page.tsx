@@ -54,7 +54,7 @@ export default async function IntakePage({
                 name="presenting_problem"
                 required
                 rows={4}
-                defaultValue={existing?.presenting_problem ?? ""}
+                value={existing?.presenting_problem ?? ""}
                 placeholder="Brief narrative — what brings the client in?"
               />
             </Field>
