@@ -41,6 +41,7 @@ describe("assessments generated columns (real DB)", () => {
   it("maps each severity band", async () => {
     const cases: Array<[number[], number, string]> = [
       [[0, 0, 0, 0, 0, 0, 0, 0, 0], 0, "None"],
+      [[1, 1, 0, 1, 1, 0, 0, 0, 0], 4, "None"],
       [[1, 1, 0, 1, 1, 1, 0, 1, 0], 6, "Mild"],
       [[2, 1, 2, 1, 1, 1, 1, 1, 0], 10, "Moderate"],
       [[3, 2, 2, 2, 2, 1, 1, 1, 1], 15, "Moderately Severe"],
