@@ -78,8 +78,8 @@ export default async function AppointmentsPage() {
                   >
                     <Box
                       style={{
-                        background: "var(--indigo-3)",
-                        border: "1px solid var(--indigo-6)",
+                        background: "#EEF2FF",
+                        border: "1px solid #C7D2FE",
                         borderRadius: 6,
                         padding: "4px 6px",
                       }}
