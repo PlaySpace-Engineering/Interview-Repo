@@ -50,7 +50,7 @@ export default async function AdministerPHQ9Page({
                 <RadioGroup.Root name={`q${i}`} required>
                   <Flex gap="4" wrap="wrap">
                     {PHQ9_ANSWER_LABELS.map((a) => (
-                      <Text as="label" size="2" key={a.value}>
+                      <Text as="label" size="2" key={i}>
                         <Flex gap="2" align="center">
                           <RadioGroup.Item value={String(a.value)} />
                           {a.label} <Text color="gray">({a.value})</Text>
