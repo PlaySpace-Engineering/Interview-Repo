@@ -59,7 +59,7 @@ values
    '11111111-1111-1111-1111-111111111111',
    '22222222-2222-2222-2222-222222222222',
    date_trunc('day', now()) + interval '16 hour',
-   date_trunc('day', now()) + interval '16 hour 60 minute',
+   date_trunc('day', now()) + interval '16 hour',
    'telehealth', '90837', 'confirmed'),
   ('33333333-3333-3333-3333-333333333334',
    '11111111-1111-1111-1111-111111111111',
