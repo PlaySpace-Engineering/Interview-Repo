@@ -19,9 +19,9 @@ export const dynamic = "force-dynamic";
 export default async function AppointmentDetailPage({
   params,
 }: {
-  params: Promise<{ id: string }>;
+  params: { id: string };
 }) {
-  const { id } = await params;
+  const { id } = params;
   const sb = await createSupabaseServerClient();
   const { data: appt } = await sb
     .from("appointments")
