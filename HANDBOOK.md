@@ -69,482 +69,379 @@ If the candidate left fixes in place, run all four suites on their final state a
 
 ## 3. Per-issue entry format (schema used in §4)
 
-Every catalogue entry in §4 uses these fields in this order:
+The master table in §4.1 carries the scannable fields. Per-tier detail blocks in §4.2-§4.4 carry the rest.
 
-- **Tier & Category** — one-line header (Easy | Medium | Hard, plus category).
-- **Plant location** — absolute repo path and approximate line numbers.
-- **Diff summary** — one-to-two lines describing what changed relative to `main`.
-- **Discovery paths** — which of code review, dev server, test suite, or AI review will surface it.
-- **Bucket** — breaks-existing-test, guided-by-new-failing-test, or slips-past.
+Master table columns:
+
+- **#** — issue number (1-24).
+- **Title** — short name (shortened from detail heading).
+- **Tier** — E (Easy) / M (Medium) / H (Hard).
+- **Cat** — category (Forms, UI, Next16, Valid, a11y, Sec, Conc, Types, RLS, DB, Seed, Perf).
+- **Location** — primary file path with line where applicable.
+- **Bucket** — which suite (if any) surfaces it. Key below the table.
+- **Time** — estimated minutes-to-find for a median senior.
+
+Detail block fields (one per issue in §4.2-§4.4):
+
+- **Diff** — what changed relative to `main`.
+- **Discovery** — which of code review, dev server, test suite, or AI review will surface it.
 - **Reproduce** — the exact command(s) that surface it.
-- **Primary probe** — the one question you should ask if you only have one minute.
-- **Graduated follow-ups** — L1 (surface mechanics), L2 (trade-offs), L3 (architectural or production-level). One sentence each.
-- **Candidate signals** — Green, Yellow, Red — one concrete observable behaviour each.
-- **Estimated time-to-find** — single number of minutes for a median senior candidate.
+- **Primary probe** — the one question to ask with only a minute.
+- **L1 / L2 / L3** — graduated follow-ups: surface mechanics, trade-offs, architectural.
+- **Green / Yellow / Red** — one concrete observable candidate behaviour for each signal level.
 
 ## 4. Catalogue
 
-### 4.1 Easy (#1-#7)
+### 4.1 Master summary
 
-#### #1 — DAP tab missing hidden format field
+| # | Title | Tier | Cat | Location | Bucket | Time |
+| --- | --- | --- | --- | --- | --- | --- |
+| 1 | DAP tab missing hidden format | E | Forms | `app/notes/new/[appointmentId]/page.tsx:72-84` | slips | ~8m |
+| 2 | Hardcoded hex replaces Radix token | E | UI | `app/appointments/page.tsx:81-82` | slips | ~5m |
+| 3 | Unawaited params in appt detail | E | Next16 | `app/appointments/[id]/page.tsx:22-24` | build† | ~6m |
+| 4 | Dashboard loses force-dynamic | E | Next16 | `app/page.tsx:18` | slips | ~10m |
+| 5 | Severity band off-by-one | E | Valid | `lib/validation/phq9.ts:51` | unit | ~3m |
+| 6 | Array-index React keys | E | UI | `app/assessments/[clientId]/phq9/new/page.tsx:~53` | slips | ~7m |
+| 7 | Unlabeled search input | E | a11y | `app/clients/page.tsx:48-57` | slips | ~8m |
+| 8 | PHQ-9 action loses integer guard | M | Valid | `app/assessments/actions.ts:14` | slips | ~12m |
+| 9 | Intake textarea read-only | M | Forms | `app/clients/[id]/intake/page.tsx:57` | e2e | ~10m |
+| 10 | PHQ-9 form drops bound clientId | M | Forms | `app/assessments/[clientId]/phq9/new/page.tsx` | e2e + build | ~12m |
+| 11 | Service-role client in chart | M | Sec | `app/assessments/[clientId]/history/chart.tsx` | build | ~15m |
+| 12 | signNoteAction race | M | Conc | `app/notes/actions.ts` (signNoteAction) | guided | ~15m |
+| 13 | Status action drops enum cast | M | Types | `app/clients/actions.ts:49` | slips | ~15m |
+| 14 | clinicians_self USING = true | M | RLS | `supabase/migrations/0003_rls_clinicians.sql` | guided | ~15m |
+| 15 | assessments_owner transitive-only | M | RLS | `supabase/migrations/0004_rls_assessments.sql` | guided† | ~20m |
+| 16 | Drop progress_notes UNIQUE | M | DB | `supabase/migrations/0005_drop_pn_unique.sql` | guided† | ~15m |
+| 17 | Seed 0-minute appointment | M | Seed | `supabase/seed.sql:62` | reset | ~8m |
+| 18 | proxy.ts matcher too broad | M | Perf | `proxy.ts:31` | slips | ~18m |
+| 19 | severity_band off-by-one (DB) | H | DB | `supabase/migrations/0006_severity_band.sql` | integ† | ~20m |
+| 20 | si_flag uses `>=` not `>` | H | DB | `supabase/migrations/0007_si_flag.sql` | guided† | ~20m |
+| 21 | Untyped JSONB cast on risk | H | Types | `app/notes/actions.ts` + `app/notes/[id]/page.tsx:45` | guided† | ~25m |
+| 22 | AlertDialog replaced with div | H | a11y | `app/notes/new/[appointmentId]/sign-confirm.tsx` | guided† | ~20m |
+| 23 | seeded_clinician_id wrong UUID | H | RLS | `supabase/migrations/0008_wrong_seed_uuid.sql` | breaks-many | ~18m |
+| 24 | Latent OOB in week view | H | Types | `app/appointments/page.tsx:39` + `supabase/seed.sql` | slips + build | ~22m |
 
-- **Tier & Category**: Easy — Forms / server actions.
-- **Plant location**: `app/notes/new/[appointmentId]/page.tsx:72-84` (DAP tab panel).
-- **Diff summary**: SOAP tab at line 55 has `<input type="hidden" name="format" value="SOAP" />`; DAP tab has no equivalent. `parseDraft` in `app/notes/actions.ts:15` falls back to `"SOAP"` when `format` is absent, so DAP submissions are interpreted as SOAP, find SOAP-named fields empty, and Zod's `nonEmpty` throws on insert.
-- **Discovery paths**: dev (submit DAP from the UI, watch the action 500); AI review (should flag the asymmetry between tab panels).
-- **Bucket**: slips-past — no existing E2E covers the DAP path.
-- **Reproduce**: `npm run dev`, navigate to a new progress note, switch to the DAP tab, fill fields, submit. Action returns `Validation failed`.
-- **Primary probe**: "Where should form/action contract drift be caught — in the form, the action, or both?"
-- **Graduated follow-ups**:
-  - L1: "How does the action know which format it received right now?"
-  - L2: "What's the trade-off between a hidden input and a per-format action endpoint?"
-  - L3: "How would you design the form-to-action contract so adding a third format (e.g. BIRP) cannot silently regress?"
-- **Candidate signals**:
-  - Green: notices the SOAP/DAP asymmetry in under three minutes by reading both panels side by side.
-  - Yellow: reaches for console logs inside `parseDraft` before reading the JSX.
-  - Red: rewrites the action to default to `"DAP"` instead of fixing the form contract.
-- **Estimated time-to-find**: ~8 min.
+**Bucket key.** `slips` = slips past all four suites (observable only via code review, dev, or AI). `unit` / `integ` / `e2e` = breaks that suite on `interview`. `build` = breaks `npm run build`. `reset` = breaks `supabase db reset`. `guided` = a new failing test was planted alongside the defect. `breaks-many` = wide cascade across multiple suites. **†** marks plants gated by another plant (usually #23 or #9) — the signal only surfaces once the gate is cleared.
 
-#### #2 — Hardcoded hex replaces Radix token
+**Category key.** Forms = form / server-action contracts. UI = Radix / design system / React. Next16 = App Router, async APIs, rendering modes. Valid = Zod / pure-function validation. a11y = accessibility. Sec = secrets / service-role / threat model. Conc = concurrency. Types = TypeScript / JSONB / casting. RLS = Postgres row-level security. DB = constraints / generated columns. Seed = `supabase/seed.sql` invariants. Perf = middleware / proxy / bundle cost.
 
-- **Tier & Category**: Easy — UI / design system.
-- **Plant location**: `app/appointments/page.tsx:81-82`.
-- **Diff summary**: `background: "var(--indigo-3)"` became `"#EEF2FF"`; `border: "1px solid var(--indigo-6)"` became `"1px solid #C7D2FE"`. Dark-mode contrast breaks visually.
-- **Discovery paths**: code review (`app/CLAUDE.md` forbids raw hex); AI review.
-- **Bucket**: slips-past.
-- **Reproduce**: open `app/appointments/page.tsx:81-82`; toggle the Radix theme appearance to dark in `app/layout.tsx` or OS-level.
-- **Primary probe**: "How would you enforce the 'no raw hex' rule in CI?"
-- **Graduated follow-ups**:
-  - L1: "Why does Radix give us `--indigo-3` instead of `#EEF2FF`?"
-  - L2: "What's the runtime cost of CSS variables vs hex literals?"
-  - L3: "Beyond ESLint, what stops a designer pasting hex from Figma into a styled component?"
-- **Candidate signals**:
-  - Green: suggests a stylelint rule, codemod, or PR-time grep; cites the `CLAUDE.md` constraint.
-  - Yellow: notices the hex but treats it as purely cosmetic.
-  - Red: defends hex literals as simpler.
-- **Estimated time-to-find**: ~5 min.
+### 4.2 Easy tier — details (#1-#7)
 
-#### #3 — Unawaited params in appointments detail
+**#1 — DAP tab missing hidden format field**
 
-- **Tier & Category**: Easy — Next 16 migration.
-- **Plant location**: `app/appointments/[id]/page.tsx` — props signature and first line of the component.
-- **Diff summary**: `params: Promise<{ id: string }>` reverted to sync, `await params` removed. Next 16 logs a sync-params warning in dev and `npm run build` errors.
-- **Discovery paths**: dev console warning; `npm run build` type error. Currently masked behind Plant #10 in `tsc` output — surfaces once #10 is resolved.
-- **Bucket**: breaks `npm run build`.
-- **Reproduce**: `npm run build` (after fixing #10); or `npm run dev` and navigate to an appointment detail.
-- **Primary probe**: "Why did Next 16 make these APIs async — what class of bug did it fix?"
-- **Graduated follow-ups**:
-  - L1: "What happens if you read `params.id` without awaiting in Next 16?"
-  - L2: "What does async `params` enable that sync didn't?"
-  - L3: "If you were migrating a large Next 13 codebase, how would you sequence this change?"
-- **Candidate signals**:
-  - Green: recognises the async `params` migration immediately and recalls the PPR / streaming rationale.
-  - Yellow: fixes mechanically without articulating why.
-  - Red: wraps the call in `React.use()` inside a non-client component.
-- **Estimated time-to-find**: ~6 min once #10 is cleared.
+- Diff: SOAP tab at `app/notes/new/[appointmentId]/page.tsx:55` has `<input type="hidden" name="format" value="SOAP" />`; the DAP tab at lines 72-84 has no equivalent. `parseDraft` in `app/notes/actions.ts:15` falls back to `"SOAP"` when `format` is absent, so DAP submissions are interpreted as SOAP, find SOAP-named fields empty, and Zod's `nonEmpty` throws on insert.
+- Discovery: dev (submit DAP from the UI, watch the action 500); AI review (should flag the asymmetry between tab panels).
+- Reproduce: `npm run dev`, navigate to a new progress note, switch to the DAP tab, fill fields, submit. Action returns `Validation failed`.
+- Primary probe: "Where should form/action contract drift be caught — in the form, the action, or both?"
+- L1: "How does the action know which format it received right now?"
+- L2: "What's the trade-off between a hidden input and a per-format action endpoint?"
+- L3: "How would you design the form-to-action contract so adding a third format (e.g. BIRP) cannot silently regress?"
+- Green: notices the SOAP/DAP asymmetry in under three minutes by reading both panels side by side.
+- Yellow: reaches for console logs inside `parseDraft` before reading the JSX.
+- Red: rewrites the action to default to `"DAP"` instead of fixing the form contract.
 
-#### #4 — Dashboard loses force-dynamic
+**#2 — Hardcoded hex replaces Radix token**
 
-- **Tier & Category**: Easy — Next 16 rendering.
-- **Plant location**: `app/page.tsx:18`.
-- **Diff summary**: `export const dynamic = "force-dynamic";` deleted. Dashboard is now statically rendered at build; writes to clients or appointments do not refresh the dashboard on next request.
-- **Discovery paths**: dev observation (stale dashboard after create); `npm run build` output marks the route static.
-- **Bucket**: slips-past.
-- **Reproduce**: `npm run build` and read the route table; or create a client in the UI and watch the dashboard stay stale.
-- **Primary probe**: "What are the alternatives to `force-dynamic` for per-request freshness?"
-- **Graduated follow-ups**:
-  - L1: "What's the default render mode for an App Router page?"
-  - L2: "Compare `force-dynamic`, `revalidate = 0`, and `noStore()` — when would you pick each?"
-  - L3: "If you wanted this dashboard to be fast and fresh, how would you architect caching?"
-- **Candidate signals**:
-  - Green: proposes `noStore()` at the fetch site or `revalidateTag` on the writing actions.
-  - Yellow: re-adds `force-dynamic` without articulating the alternatives.
-  - Red: doesn't notice because no test covers it.
-- **Estimated time-to-find**: ~10 min.
+- Diff: `background: "var(--indigo-3)"` became `"#EEF2FF"`; `border: "1px solid var(--indigo-6)"` became `"1px solid #C7D2FE"`. Dark-mode contrast breaks visually.
+- Discovery: code review (`app/CLAUDE.md` forbids raw hex); AI review.
+- Reproduce: open `app/appointments/page.tsx:81-82`; toggle the Radix theme appearance to dark in `app/layout.tsx` or OS-level.
+- Primary probe: "How would you enforce the 'no raw hex' rule in CI?"
+- L1: "Why does Radix give us `--indigo-3` instead of `#EEF2FF`?"
+- L2: "What's the runtime cost of CSS variables vs hex literals?"
+- L3: "Beyond ESLint, what stops a designer pasting hex from Figma into a styled component?"
+- Green: suggests a stylelint rule, codemod, or PR-time grep; cites the `CLAUDE.md` constraint.
+- Yellow: notices the hex but treats it as purely cosmetic.
+- Red: defends hex literals as simpler.
 
-#### #5 — Severity band off-by-one
+**#3 — Unawaited params in appointments detail**
 
-- **Tier & Category**: Easy — validation.
-- **Plant location**: `lib/validation/phq9.ts:51`.
-- **Diff summary**: `if (total <= 4) return "None";` became `if (total < 4) return "None";`. A PHQ-9 score of 4 now returns "Mild" instead of "None".
-- **Discovery paths**: unit test (`tests/unit/phq9.test.ts > maps all five bands`).
-- **Bucket**: breaks-existing-test.
-- **Reproduce**: `npm run test`.
-- **Primary probe**: "Walk me through how you audit inclusive / exclusive boundaries in a scoring module."
-- **Graduated follow-ups**:
-  - L1: "What's the correct DSM-5 PHQ-9 banding for a total of 4?"
-  - L2: "Would you prefer explicit `if` bands or a lookup table with boundary comments?"
-  - L3: "If these bands drove clinical alerts, what defence-in-depth would you add beyond one unit test?"
-- **Candidate signals**:
-  - Green: reads the failing test output, jumps straight to the band function, fixes and reruns.
-  - Yellow: fixes but doesn't look for the same pattern in `supabase/migrations/0006_severity_band.sql`.
-  - Red: changes the test expectation to match the buggy code.
-- **Estimated time-to-find**: ~3 min.
+- Diff: `params: Promise<{ id: string }>` reverted to sync, `await params` removed. Next 16 logs a sync-params warning in dev and `npm run build` errors.
+- Discovery: dev console warning; `npm run build` type error. Currently masked behind Plant #10 in `tsc` output — surfaces once #10 is resolved.
+- Reproduce: `npm run build` (after fixing #10); or `npm run dev` and navigate to an appointment detail.
+- Primary probe: "Why did Next 16 make these APIs async — what class of bug did it fix?"
+- L1: "What happens if you read `params.id` without awaiting in Next 16?"
+- L2: "What does async `params` enable that sync didn't?"
+- L3: "If you were migrating a large Next 13 codebase, how would you sequence this change?"
+- Green: recognises the async `params` migration immediately and recalls the PPR / streaming rationale.
+- Yellow: fixes mechanically without articulating why.
+- Red: wraps the call in `React.use()` inside a non-client component.
 
-#### #6 — Array-index React keys
+**#4 — Dashboard loses force-dynamic**
 
-- **Tier & Category**: Easy — UI / React.
-- **Plant location**: `app/assessments/[clientId]/phq9/new/page.tsx:~53`.
-- **Diff summary**: Inner radio-option map uses the outer loop index `i` instead of the option's own id, producing duplicate keys inside each `RadioGroup`. React dev warns.
-- **Discovery paths**: dev console warnings; AI review.
-- **Bucket**: slips-past.
-- **Reproduce**: `npm run dev`, navigate to the new PHQ-9 form, open dev tools, observe the "Encountered two children with the same key" warning.
-- **Primary probe**: "When is an index-based key fine, and when does it break?"
-- **Graduated follow-ups**:
-  - L1: "What does React actually do with `key`?"
-  - L2: "Describe a concrete bug you've seen caused by unstable keys."
-  - L3: "How would you enforce stable keys in a team without adding review friction?"
-- **Candidate signals**:
-  - Green: names reconciliation and proposes `value`-based keys.
-  - Yellow: fixes but cannot articulate the downstream user-visible bug.
-  - Red: claims index keys are always fine.
-- **Estimated time-to-find**: ~7 min.
+- Diff: `export const dynamic = "force-dynamic";` deleted. Dashboard is now statically rendered at build; writes to clients or appointments do not refresh the dashboard on next request.
+- Discovery: dev observation (stale dashboard after create); `npm run build` output marks the route static.
+- Reproduce: `npm run build` and read the route table; or create a client in the UI and watch the dashboard stay stale.
+- Primary probe: "What are the alternatives to `force-dynamic` for per-request freshness?"
+- L1: "What's the default render mode for an App Router page?"
+- L2: "Compare `force-dynamic`, `revalidate = 0`, and `noStore()` — when would you pick each?"
+- L3: "If you wanted this dashboard to be fast and fresh, how would you architect caching?"
+- Green: proposes `noStore()` at the fetch site or `revalidateTag` on the writing actions.
+- Yellow: re-adds `force-dynamic` without articulating the alternatives.
+- Red: doesn't notice because no test covers it.
 
-#### #7 — Search input has decorative-only label
+**#5 — Severity band off-by-one**
 
-- **Tier & Category**: Easy — UI / accessibility.
-- **Plant location**: `app/clients/page.tsx:48-57`.
-- **Diff summary**: A visible `<Text>Search</Text>` sits above the search `TextField` with no `htmlFor`, no `aria-label`, and no `aria-labelledby`. Screen readers announce the field as unlabelled.
-- **Discovery paths**: AI review; axe / Lighthouse; manual keyboard traversal.
-- **Bucket**: slips-past.
-- **Reproduce**: `npm run dev`, navigate to `/clients`, inspect the search input. A `getByLabel('Search clients')` Playwright assertion would fail.
-- **Primary probe**: "How do you bake a11y regressions into CI?"
-- **Graduated follow-ups**:
-  - L1: "What exactly does a screen reader read out for this input today?"
-  - L2: "`aria-label` vs `<label htmlFor>` vs visually-hidden `<label>` — when do you pick each?"
-  - L3: "Where would you put axe in a pipeline for a regulated healthcare product?"
-- **Candidate signals**:
-  - Green: pairs the visible text with `htmlFor` + matching `id` rather than reaching for `aria-label`.
-  - Yellow: fixes with `aria-label` and loses the visible text in the next iteration.
-  - Red: does not notice without AI assistance.
-- **Estimated time-to-find**: ~8 min.
+- Diff: `if (total <= 4) return "None";` became `if (total < 4) return "None";`. A PHQ-9 score of 4 now returns "Mild" instead of "None".
+- Discovery: unit test (`tests/unit/phq9.test.ts > maps all five bands`).
+- Reproduce: `npm run test`.
+- Primary probe: "Walk me through how you audit inclusive / exclusive boundaries in a scoring module."
+- L1: "What's the correct DSM-5 PHQ-9 banding for a total of 4?"
+- L2: "Would you prefer explicit `if` bands or a lookup table with boundary comments?"
+- L3: "If these bands drove clinical alerts, what defence-in-depth would you add beyond one unit test?"
+- Green: reads the failing test output, jumps straight to the band function, fixes and reruns.
+- Yellow: fixes but doesn't look for the same pattern in `supabase/migrations/0006_severity_band.sql`.
+- Red: changes the test expectation to match the buggy code.
 
-### 4.2 Medium (#8-#18)
+**#6 — Array-index React keys**
 
-#### #8 — PHQ-9 action loses integer guard
+- Diff: Inner radio-option map uses the outer loop index `i` instead of the option's own id, producing duplicate keys inside each `RadioGroup`. React dev warns.
+- Discovery: dev console warnings; AI review.
+- Reproduce: `npm run dev`, navigate to the new PHQ-9 form, open dev tools, observe the "Encountered two children with the same key" warning.
+- Primary probe: "When is an index-based key fine, and when does it break?"
+- L1: "What does React actually do with `key`?"
+- L2: "Describe a concrete bug you've seen caused by unstable keys."
+- L3: "How would you enforce stable keys in a team without adding review friction?"
+- Green: names reconciliation and proposes `value`-based keys.
+- Yellow: fixes but cannot articulate the downstream user-visible bug.
+- Red: claims index keys are always fine.
 
-- **Tier & Category**: Medium — validation.
-- **Plant location**: `app/assessments/actions.ts:14`.
-- **Diff summary**: `!Number.isInteger(n)` became `Number.isNaN(n)`. A fractional string like `"2.5"` now passes the action guard and reaches the DB, which rejects it with a less actionable error.
-- **Discovery paths**: dev (submit fractional via browser devtools by editing the hidden input); code review. Guided test `tests/integration/phq9-action-coercion.test.ts` is a DB-layer probe that PASSES on both `main` and `interview` — it is a probe, not a gate. That makes this plant specifically a code-review / AI-review target.
-- **Bucket**: slips-past.
-- **Reproduce**: `npm run dev`; in the browser console, inject `document.querySelector('input[name="q0"]').value = '2.5'` before submit; observe the cryptic DB error. Or read the diff between the guard and the call-sites.
-- **Primary probe**: "Where should runtime type guards live — in the action, the validator, the DB, or all three?"
-- **Graduated follow-ups**:
-  - L1: "What's the observable difference between `!Number.isInteger(n)` and `Number.isNaN(n)` for the input `'2.5'`?"
-  - L2: "We already have a DB `CHECK`. Why bother guarding in the action?"
-  - L3: "Design the three-layer validation contract you'd want for a form that writes to a check-constrained column."
-- **Candidate signals**:
-  - Green: notices the semantic change, explains the difference, reinstates the integer guard.
-  - Yellow: deletes the guard entirely because "the DB already has a CHECK".
-  - Red: does not see the diff and treats the existing guard as correct.
-- **Estimated time-to-find**: ~12 min.
+**#7 — Search input has decorative-only label**
 
-#### #9 — Intake textarea becomes read-only
+- Diff: A visible `<Text>Search</Text>` sits above the search `TextField` with no `htmlFor`, no `aria-label`, and no `aria-labelledby`. Screen readers announce the field as unlabelled.
+- Discovery: AI review; axe / Lighthouse; manual keyboard traversal.
+- Reproduce: `npm run dev`, navigate to `/clients`, inspect the search input. A `getByLabel('Search clients')` Playwright assertion would fail.
+- Primary probe: "How do you bake a11y regressions into CI?"
+- L1: "What exactly does a screen reader read out for this input today?"
+- L2: "`aria-label` vs `<label htmlFor>` vs visually-hidden `<label>` — when do you pick each?"
+- L3: "Where would you put axe in a pipeline for a regulated healthcare product?"
+- Green: pairs the visible text with `htmlFor` + matching `id` rather than reaching for `aria-label`.
+- Yellow: fixes with `aria-label` and loses the visible text in the next iteration.
+- Red: does not notice without AI assistance.
 
-- **Tier & Category**: Medium — forms / React.
-- **Plant location**: `app/clients/[id]/intake/page.tsx:57`.
-- **Diff summary**: `defaultValue={…}` became `value={…}` with no `onChange`. The field is now a controlled input with no state setter, which React warns about and Playwright cannot `.fill(…)`.
-- **Discovery paths**: E2E (`intake-to-signed-note` spec hangs at `.fill`); dev console warning.
-- **Bucket**: breaks-existing-test.
-- **Reproduce**: `npx playwright test intake-to-signed-note`.
-- **Primary probe**: "Controlled vs uncontrolled in a server-action world — what does `defaultValue` actually buy us?"
-- **Graduated follow-ups**:
-  - L1: "What does React log when you render `<textarea value={x} />` without `onChange`?"
-  - L2: "If you wanted the field to be reactive to another component, how would you reconcile that with server actions?"
-  - L3: "Walk me through your default stance: reach for `defaultValue` or `value`, and why?"
-- **Candidate signals**:
-  - Green: recognises the controlled/uncontrolled split, explains the `onChange` requirement, restores `defaultValue`.
-  - Yellow: adds an empty `onChange={() => {}}` to silence the warning.
-  - Red: wraps the whole page in `"use client"` to add state.
-- **Estimated time-to-find**: ~10 min.
+### 4.3 Medium tier — details (#8-#18)
 
-#### #10 — PHQ-9 form drops bound clientId
+**#8 — PHQ-9 action loses integer guard**
 
-- **Tier & Category**: Medium — forms / server actions.
-- **Plant location**: `app/assessments/[clientId]/phq9/new/page.tsx`.
-- **Diff summary**: `const bound = submitPHQ9Action.bind(null, clientId);` removed and `<form action={bound}>` became `<form action={submitPHQ9Action}>`. The action now receives `FormData` as its first positional arg instead of `clientId`, so it 500s. Also produces a type error in `npm run build` that masks Plant #3.
-- **Discovery paths**: E2E (`phq9-administer-and-chart`); `npm run build`.
-- **Bucket**: breaks-existing-test AND breaks-build.
-- **Reproduce**: `npm run build` or `npx playwright test phq9-administer-and-chart`.
-- **Primary probe**: "What is `action.bind` doing on the server — what replaced it in newer React?"
-- **Graduated follow-ups**:
-  - L1: "What's the runtime shape of the arguments to a bound server action?"
-  - L2: "`action.bind` vs a hidden `<input name='clientId'>` — trade-offs?"
-  - L3: "If you were designing the action contract from scratch, how would you pass route-scoped identifiers?"
-- **Candidate signals**:
-  - Green: restores `bind`, explains why it matters for parameter ordering.
-  - Yellow: adds a hidden input for `clientId` without acknowledging the security implications of client-supplied IDs.
-  - Red: rewrites the action signature destructively.
-- **Estimated time-to-find**: ~12 min.
+- Diff: `!Number.isInteger(n)` became `Number.isNaN(n)`. A fractional string like `"2.5"` now passes the action guard and reaches the DB, which rejects it with a less actionable error.
+- Discovery: dev (submit fractional via browser devtools by editing the hidden input); code review. Guided test `tests/integration/phq9-action-coercion.test.ts` is a DB-layer probe that PASSES on both `main` and `interview` — it is a probe, not a gate. That makes this plant specifically a code-review / AI-review target.
+- Reproduce: `npm run dev`; in the browser console, inject `document.querySelector('input[name="q0"]').value = '2.5'` before submit; observe the cryptic DB error. Or read the diff between the guard and the call-sites.
+- Primary probe: "Where should runtime type guards live — in the action, the validator, the DB, or all three?"
+- L1: "What's the observable difference between `!Number.isInteger(n)` and `Number.isNaN(n)` for the input `'2.5'`?"
+- L2: "We already have a DB `CHECK`. Why bother guarding in the action?"
+- L3: "Design the three-layer validation contract you'd want for a form that writes to a check-constrained column."
+- Green: notices the semantic change, explains the difference, reinstates the integer guard.
+- Yellow: deletes the guard entirely because "the DB already has a CHECK".
+- Red: does not see the diff and treats the existing guard as correct.
 
-#### #11 — Service-role client imported into client chart
+**#9 — Intake textarea becomes read-only**
 
-- **Tier & Category**: Medium — security.
-- **Plant location**: `app/assessments/[clientId]/history/chart.tsx`.
-- **Diff summary**: Adds `import { createSupabaseServiceClient } from '@/lib/supabase/service'` plus a dead `if (false) createSupabaseServiceClient();` stub labelled "realtime subscription placeholder". Because the file has `"use client"`, the import pulls `SUPABASE_SERVICE_ROLE_KEY` toward the browser bundle.
-- **Discovery paths**: `npm run build` warning about environment-variable leakage; code review against `lib/supabase/CLAUDE.md` which explicitly forbids this; AI review. A `page.on('pageerror')` assertion in the PHQ-9 spec will catch it if reached.
-- **Bucket**: slips-past unit/integration/pgTAP; build warning and conditional E2E.
-- **Reproduce**: `npm run build` (watch for the service-role warning) or read the imports in `chart.tsx`.
-- **Primary probe**: "How do you prevent secret leakage at build time, not at review time?"
-- **Graduated follow-ups**:
-  - L1: "What is the service-role key and why shouldn't it be in the browser bundle?"
-  - L2: "If you needed realtime here, what's the right architecture?"
-  - L3: "What automation would have stopped this PR from merging?"
-- **Candidate signals**:
-  - Green: removes the import, proposes anon-client realtime, cites `lib/supabase/CLAUDE.md`.
-  - Yellow: deletes the dead code but does not notice the bundle implication.
-  - Red: defends the stub as harmless because it's inside `if (false)`.
-- **Estimated time-to-find**: ~15 min.
+- Diff: `defaultValue={…}` became `value={…}` with no `onChange`. The field is now a controlled input with no state setter, which React warns about and Playwright cannot `.fill(…)`.
+- Discovery: E2E (`intake-to-signed-note` spec hangs at `.fill`); dev console warning.
+- Reproduce: `npx playwright test intake-to-signed-note`.
+- Primary probe: "Controlled vs uncontrolled in a server-action world — what does `defaultValue` actually buy us?"
+- L1: "What does React log when you render `<textarea value={x} />` without `onChange`?"
+- L2: "If you wanted the field to be reactive to another component, how would you reconcile that with server actions?"
+- L3: "Walk me through your default stance: reach for `defaultValue` or `value`, and why?"
+- Green: recognises the controlled/uncontrolled split, explains the `onChange` requirement, restores `defaultValue`.
+- Yellow: adds an empty `onChange={() => {}}` to silence the warning.
+- Red: wraps the whole page in `"use client"` to add state.
 
-#### #12 — signNoteAction read-then-update race
+**#10 — PHQ-9 form drops bound clientId**
 
-- **Tier & Category**: Medium — concurrency / SQL.
-- **Plant location**: `app/notes/actions.ts` inside `signNoteAction`.
-- **Diff summary**: A `await new Promise(r => setTimeout(r, 50));` has been inserted between the SELECT that checks `locked` and the UPDATE that sets signature fields. The UPDATE still lacks `.eq("locked", false)`, so two parallel signers can both read unlocked, both enter the UPDATE path, and the second hits the DB lock trigger with a confusing "row is locked" error.
-- **Discovery paths**: guided integration test `tests/integration/note-sign-race.test.ts` fires two concurrent sign attempts and asserts no failure message should match `/locked/`.
-- **Bucket**: guided-by-new-failing-test.
-- **Reproduce**: `npm run test:integration -- note-sign-race`.
-- **Primary probe**: "Write the single SQL statement that eliminates this race."
-- **Graduated follow-ups**:
-  - L1: "Why is 'read, then update' unsafe here?"
-  - L2: "Compare optimistic locking (add `.eq('locked', false)`) vs `SELECT … FOR UPDATE`."
-  - L3: "Where in the stack — app, trigger, or advisory lock — should we prevent this class of bug?"
-- **Candidate signals**:
-  - Green: collapses the read and write into a single `UPDATE … WHERE locked = false` and checks affected-rows.
-  - Yellow: removes the `setTimeout` and declares victory.
-  - Red: adds a JS-side mutex.
-- **Estimated time-to-find**: ~15 min.
+- Diff: `const bound = submitPHQ9Action.bind(null, clientId);` removed and `<form action={bound}>` became `<form action={submitPHQ9Action}>`. The action now receives `FormData` as its first positional arg instead of `clientId`, so it 500s. Also produces a type error in `npm run build` that masks Plant #3.
+- Discovery: E2E (`phq9-administer-and-chart`); `npm run build`.
+- Reproduce: `npm run build` or `npx playwright test phq9-administer-and-chart`.
+- Primary probe: "What is `action.bind` doing on the server — what replaced it in newer React?"
+- L1: "What's the runtime shape of the arguments to a bound server action?"
+- L2: "`action.bind` vs a hidden `<input name='clientId'>` — trade-offs?"
+- L3: "If you were designing the action contract from scratch, how would you pass route-scoped identifiers?"
+- Green: restores `bind`, explains why it matters for parameter ordering.
+- Yellow: adds a hidden input for `clientId` without acknowledging the security implications of client-supplied IDs.
+- Red: rewrites the action signature destructively.
 
-#### #13 — updateClientStatusAction drops enum cast
+**#11 — Service-role client imported into client chart**
 
-- **Tier & Category**: Medium — types / security scope.
-- **Plant location**: `app/clients/actions.ts:49`.
-- **Diff summary**: `.update({ status: status as 'active' | 'inactive' | 'waitlist' | 'discharged' })` became `.update({ status })`. Because the upstream `status` parameter is typed `string`, TypeScript does not catch this — but the Postgres enum will reject unknown strings with a cryptic error.
-- **Discovery paths**: code review (compare against `saveIntakeAction` and `createClientAction` on the same file).
-- **Bucket**: slips-past.
-- **Reproduce**: read `app/clients/actions.ts` end-to-end; the pattern is inconsistent.
-- **Primary probe**: "RLS already blocks cross-clinician writes. Why does scope / enum-casting in the action still matter?"
-- **Graduated follow-ups**:
-  - L1: "What will Postgres return if you pass `'archived'` to a status enum that has no `'archived'` member?"
-  - L2: "If RLS stops unauthorised writes, what's the remaining job of an app-layer type guard?"
-  - L3: "Design the type contract between `FormData`, a Zod schema, and a Supabase insert."
-- **Candidate signals**:
-  - Green: tightens the upstream parameter type OR restores the cast AND points at the missing Zod schema.
-  - Yellow: adds the cast mechanically.
-  - Red: defers to RLS.
-- **Estimated time-to-find**: ~15 min.
+- Diff: Adds `import { createSupabaseServiceClient } from '@/lib/supabase/service'` plus a dead `if (false) createSupabaseServiceClient();` stub labelled "realtime subscription placeholder". Because the file has `"use client"`, the import pulls `SUPABASE_SERVICE_ROLE_KEY` toward the browser bundle.
+- Discovery: `npm run build` warning about environment-variable leakage; code review against `lib/supabase/CLAUDE.md` which explicitly forbids this; AI review. A `page.on('pageerror')` assertion in the PHQ-9 spec will catch it if reached.
+- Reproduce: `npm run build` (watch for the service-role warning) or read the imports in `chart.tsx`.
+- Primary probe: "How do you prevent secret leakage at build time, not at review time?"
+- L1: "What is the service-role key and why shouldn't it be in the browser bundle?"
+- L2: "If you needed realtime here, what's the right architecture?"
+- L3: "What automation would have stopped this PR from merging?"
+- Green: removes the import, proposes anon-client realtime, cites `lib/supabase/CLAUDE.md`.
+- Yellow: deletes the dead code but does not notice the bundle implication.
+- Red: defends the stub as harmless because it's inside `if (false)`.
 
-#### #14 — clinicians_self policy USING becomes true
+**#12 — signNoteAction read-then-update race**
 
-- **Tier & Category**: Medium — RLS.
-- **Plant location**: `supabase/migrations/0003_rls_clinicians.sql` (new migration).
-- **Diff summary**: Drops and recreates the `clinicians_self` policy with `using (true)`; `with check` predicate is unchanged. Anon can now SELECT every clinician row.
-- **Discovery paths**: guided pgTAP test `supabase/tests/rls_clinicians.sql` — inserts a foreign clinician as transaction owner, switches to the anon role, and asserts anon cannot see it. Assertion 2 fails.
-- **Bucket**: guided-by-new-failing-test.
-- **Reproduce**: `supabase test db`.
-- **Primary probe**: "USING vs WITH CHECK — which one protects what?"
-- **Graduated follow-ups**:
-  - L1: "What do the two clauses each restrict?"
-  - L2: "Design a single policy that correctly scopes both read and write for a multi-tenant table."
-  - L3: "Pros and cons of one compound policy vs two role-specific policies."
-- **Candidate signals**:
-  - Green: explains the USING/WITH CHECK split and restores the per-tenant predicate in USING.
-  - Yellow: fixes mechanically without narrating the threat model.
-  - Red: leaves `using (true)` and tightens WITH CHECK only.
-- **Estimated time-to-find**: ~15 min.
+- Diff: A `await new Promise(r => setTimeout(r, 50));` has been inserted between the SELECT that checks `locked` and the UPDATE that sets signature fields. The UPDATE still lacks `.eq("locked", false)`, so two parallel signers can both read unlocked, both enter the UPDATE path, and the second hits the DB lock trigger with a confusing "row is locked" error.
+- Discovery: guided integration test `tests/integration/note-sign-race.test.ts` fires two concurrent sign attempts and asserts no failure message should match `/locked/`.
+- Reproduce: `npm run test:integration -- note-sign-race`.
+- Primary probe: "Write the single SQL statement that eliminates this race."
+- L1: "Why is 'read, then update' unsafe here?"
+- L2: "Compare optimistic locking (add `.eq('locked', false)`) vs `SELECT … FOR UPDATE`."
+- L3: "Where in the stack — app, trigger, or advisory lock — should we prevent this class of bug?"
+- Green: collapses the read and write into a single `UPDATE … WHERE locked = false` and checks affected-rows.
+- Yellow: removes the `setTimeout` and declares victory.
+- Red: adds a JS-side mutex.
 
-#### #15 — assessments_owner transitive-only
+**#13 — updateClientStatusAction drops enum cast**
 
-- **Tier & Category**: Medium — RLS.
-- **Plant location**: `supabase/migrations/0004_rls_assessments.sql` (new migration).
-- **Diff summary**: Drops and recreates the `assessments_owner` policy with only the `EXISTS (SELECT 1 FROM clients WHERE clients.id = assessments.client_id AND clients.clinician_id = seeded_clinician_id())` predicate. The direct `clinician_id = seeded_clinician_id()` predicate in both USING and WITH CHECK is gone.
-- **Discovery paths**: guided integration test `tests/integration/assessments-rls-transitive.test.ts` — inserts an assessment for a seeded client but with a foreign `clinician_id`. Without the direct predicate, the foreign row slips through WITH CHECK because the EXISTS subquery matches the seeded client.
-- **Bucket**: guided-by-new-failing-test. IMPORTANT — currently masked by Plant #23. With the wrong `seeded_clinician_id()` returning `…1112`, the EXISTS subquery returns empty, WITH CHECK blocks the insert, and the test's `expect(error).not.toBeNull()` coincidentally passes. The candidate must resolve #23 before this test surfaces the plant.
-- **Reproduce**: fix #23, then `npm run test:integration -- assessments-rls-transitive`.
-- **Primary probe**: "Pros and cons of transitive vs direct RLS predicates."
-- **Graduated follow-ups**:
-  - L1: "What does the EXISTS subquery protect, and what does it not?"
-  - L2: "When would transitive-only be correct?"
-  - L3: "If you owned this RLS policy catalogue, how would you test it generatively?"
-- **Candidate signals**:
-  - Green: explains that the direct predicate protects against "attach to owned client but attribute to foreign clinician" and restores it.
-  - Yellow: fixes without noticing the cascade with #23.
-  - Red: reasons only about the read side.
-- **Estimated time-to-find**: ~20 min after #23 is fixed.
+- Diff: `.update({ status: status as 'active' | 'inactive' | 'waitlist' | 'discharged' })` became `.update({ status })`. Because the upstream `status` parameter is typed `string`, TypeScript does not catch this — but the Postgres enum will reject unknown strings with a cryptic error.
+- Discovery: code review (compare against `saveIntakeAction` and `createClientAction` on the same file).
+- Reproduce: read `app/clients/actions.ts` end-to-end; the pattern is inconsistent.
+- Primary probe: "RLS already blocks cross-clinician writes. Why does scope / enum-casting in the action still matter?"
+- L1: "What will Postgres return if you pass `'archived'` to a status enum that has no `'archived'` member?"
+- L2: "If RLS stops unauthorised writes, what's the remaining job of an app-layer type guard?"
+- L3: "Design the type contract between `FormData`, a Zod schema, and a Supabase insert."
+- Green: tightens the upstream parameter type OR restores the cast AND points at the missing Zod schema.
+- Yellow: adds the cast mechanically.
+- Red: defers to RLS.
 
-#### #16 — Drop progress_notes.appointment_id UNIQUE
+**#14 — clinicians_self policy USING becomes true**
 
-- **Tier & Category**: Medium — DB constraints.
-- **Plant location**: `supabase/migrations/0005_drop_pn_unique.sql` (new migration).
-- **Diff summary**: `alter table progress_notes drop constraint progress_notes_appointment_id_key;`. Two progress notes per appointment can now coexist.
-- **Discovery paths**: guided integration test `tests/integration/notes-duplicate-per-appointment.test.ts` — inserts two notes for the same appointment; on `main` the second fails with a UNIQUE violation.
-- **Bucket**: guided-by-new-failing-test. Also masked by #23 until that is fixed (seeded queries return zero rows; test preconditions break).
-- **Reproduce**: fix #23, then `npm run test:integration -- notes-duplicate-per-appointment`.
-- **Primary probe**: "How do DB-level invariants complement app validation?"
-- **Graduated follow-ups**:
-  - L1: "Why did the UNIQUE constraint exist in the first place?"
-  - L2: "If product says an appointment can have multiple note drafts, how would you model it?"
-  - L3: "How would you roll a down-migration that restores UNIQUE safely in prod?"
-- **Candidate signals**:
-  - Green: restores the UNIQUE and explicitly asks whether it's a product change or a regression.
-  - Yellow: adds an app-layer guard instead of restoring the constraint.
-  - Red: doesn't notice until the test fails.
-- **Estimated time-to-find**: ~15 min after #23 is fixed.
+- Diff: Drops and recreates the `clinicians_self` policy with `using (true)`; `with check` predicate is unchanged. Anon can now SELECT every clinician row.
+- Discovery: guided pgTAP test `supabase/tests/rls_clinicians.sql` — inserts a foreign clinician as transaction owner, switches to the anon role, and asserts anon cannot see it. Assertion 2 fails.
+- Reproduce: `supabase test db`.
+- Primary probe: "USING vs WITH CHECK — which one protects what?"
+- L1: "What do the two clauses each restrict?"
+- L2: "Design a single policy that correctly scopes both read and write for a multi-tenant table."
+- L3: "Pros and cons of one compound policy vs two role-specific policies."
+- Green: explains the USING/WITH CHECK split and restores the per-tenant predicate in USING.
+- Yellow: fixes mechanically without narrating the threat model.
+- Red: leaves `using (true)` and tightens WITH CHECK only.
 
-#### #17 — Seed: middle appointment has 0-minute duration
+**#15 — assessments_owner transitive-only**
 
-- **Tier & Category**: Medium — seed / DB constraints.
-- **Plant location**: `supabase/seed.sql:62`.
-- **Diff summary**: `interval '16 hour 60 minute'` became `interval '16 hour'`, so `end_at = start_at`. The `check (end_at > start_at)` constraint defined in `supabase/migrations/0001_init.sql:66` rejects the row. Every downstream seed statement — progress notes, assessments — is aborted because the transaction bails.
-- **Discovery paths**: `supabase db reset` fails loudly at the appointments INSERT; integration and E2E suites then see a mostly-empty database.
-- **Bucket**: breaks `supabase db reset` — cascades into every test run.
-- **Reproduce**: `npm run db:reset`.
-- **Primary probe**: "How do you keep seed data in lockstep with evolving constraints?"
-- **Graduated follow-ups**:
-  - L1: "Why does the rest of the seed also fail to insert?"
-  - L2: "Would you CI this seed in isolation? What would that cost?"
-  - L3: "Design the migration + seed review process that makes this unshippable."
-- **Candidate signals**:
-  - Green: reads the Postgres error, identifies the constraint, fixes the interval, explains the transactional cascade.
-  - Yellow: guesses a random interval.
-  - Red: disables the constraint.
-- **Estimated time-to-find**: ~8 min (but this is usually the first thing the candidate hits, so it anchors early).
+- Diff: Drops and recreates the `assessments_owner` policy with only the `EXISTS (SELECT 1 FROM clients WHERE clients.id = assessments.client_id AND clients.clinician_id = seeded_clinician_id())` predicate. The direct `clinician_id = seeded_clinician_id()` predicate in both USING and WITH CHECK is gone.
+- Discovery: guided integration test `tests/integration/assessments-rls-transitive.test.ts` — inserts an assessment for a seeded client but with a foreign `clinician_id`. Without the direct predicate, the foreign row slips through WITH CHECK because the EXISTS subquery matches the seeded client. **Cascade note:** currently masked by Plant #23. With the wrong `seeded_clinician_id()` returning `…1112`, the EXISTS subquery returns empty, WITH CHECK blocks the insert, and the test's `expect(error).not.toBeNull()` coincidentally passes. The candidate must resolve #23 before this test surfaces the plant.
+- Reproduce: fix #23, then `npm run test:integration -- assessments-rls-transitive`.
+- Primary probe: "Pros and cons of transitive vs direct RLS predicates."
+- L1: "What does the EXISTS subquery protect, and what does it not?"
+- L2: "When would transitive-only be correct?"
+- L3: "If you owned this RLS policy catalogue, how would you test it generatively?"
+- Green: explains that the direct predicate protects against "attach to owned client but attribute to foreign clinician" and restores it.
+- Yellow: fixes without noticing the cascade with #23.
+- Red: reasons only about the read side.
 
-#### #18 — proxy.ts matcher too broad
+**#16 — Drop progress_notes.appointment_id UNIQUE**
 
-- **Tier & Category**: Medium — Next 16 / performance.
-- **Plant location**: `proxy.ts:31`.
-- **Diff summary**: `["/((?!_next/static|_next/image|favicon.ico).*)"]` became `["/:path*"]`. Every `_next/static/*` request now instantiates a server Supabase client and walks the SSR session-refresh path.
-- **Discovery paths**: dev observation (Network tab + dev server logs show the middleware firing on asset requests). No automated assertion — a planned Playwright assertion was deemed flaky and removed.
-- **Bucket**: slips-past.
-- **Reproduce**: `npm run dev`, open the Network tab, filter `_next/static/`, watch the dev server log a matcher hit per asset.
-- **Primary probe**: "How do you reason about middleware/proxy matchers for performance and correctness?"
-- **Graduated follow-ups**:
-  - L1: "What happens on every middleware invocation here?"
-  - L2: "How would you measure the impact in prod?"
-  - L3: "What's your mental model for ordering matcher negations when multiple proxies compose?"
-- **Candidate signals**:
-  - Green: restores the asset exclusion and cites the Supabase SSR cost.
-  - Yellow: restores it but cannot explain the cost.
-  - Red: doesn't notice.
-- **Estimated time-to-find**: ~18 min.
+- Diff: `alter table progress_notes drop constraint progress_notes_appointment_id_key;`. Two progress notes per appointment can now coexist.
+- Discovery: guided integration test `tests/integration/notes-duplicate-per-appointment.test.ts` — inserts two notes for the same appointment; on `main` the second fails with a UNIQUE violation. **Cascade note:** also masked by #23 until that is fixed (seeded queries return zero rows; test preconditions break).
+- Reproduce: fix #23, then `npm run test:integration -- notes-duplicate-per-appointment`.
+- Primary probe: "How do DB-level invariants complement app validation?"
+- L1: "Why did the UNIQUE constraint exist in the first place?"
+- L2: "If product says an appointment can have multiple note drafts, how would you model it?"
+- L3: "How would you roll a down-migration that restores UNIQUE safely in prod?"
+- Green: restores the UNIQUE and explicitly asks whether it's a product change or a regression.
+- Yellow: adds an app-layer guard instead of restoring the constraint.
+- Red: doesn't notice until the test fails.
 
-### 4.3 Hard (#19-#24)
+**#17 — Seed: middle appointment has 0-minute duration**
 
-#### #19 — severity_band generated column off-by-one
+- Diff: `interval '16 hour 60 minute'` became `interval '16 hour'`, so `end_at = start_at`. The `check (end_at > start_at)` constraint defined in `supabase/migrations/0001_init.sql:66` rejects the row. Every downstream seed statement — progress notes, assessments — is aborted because the transaction bails.
+- Discovery: `supabase db reset` fails loudly at the appointments INSERT; integration and E2E suites then see a mostly-empty database.
+- Reproduce: `npm run db:reset`.
+- Primary probe: "How do you keep seed data in lockstep with evolving constraints?"
+- L1: "Why does the rest of the seed also fail to insert?"
+- L2: "Would you CI this seed in isolation? What would that cost?"
+- L3: "Design the migration + seed review process that makes this unshippable."
+- Green: reads the Postgres error, identifies the constraint, fixes the interval, explains the transactional cascade.
+- Yellow: guesses a random interval.
+- Red: disables the constraint.
 
-- **Tier & Category**: Hard — DB generated columns.
-- **Plant location**: `supabase/migrations/0006_severity_band.sql` (new migration).
-- **Diff summary**: Drops and recreates the `severity_band` generated column with `between 0 and 3` for 'None'. The JS severity function still uses `<= 4`, so app and DB disagree on score 4.
-- **Discovery paths**: expanded case in `tests/integration/phq9.test.ts > maps each severity band` — specifically `[[1,1,0,1,1,0,0,0,0], 4, 'None']` — which asserts the DB returns "None" and fails with plant because DB returns "Mild".
-- **Bucket**: breaks-existing-test (expanded). Masked by #23 until fixed.
-- **Reproduce**: fix #23, then `npm run test:integration -- phq9`.
-- **Primary probe**: "The unit test asserts the JS `severityBand`; the integration test asserts the DB column. Where should the canonical version live?"
-- **Graduated follow-ups**:
-  - L1: "What are the trade-offs between computing severity in JS vs as a generated column?"
-  - L2: "If they must disagree during a rollout, which side wins — and how do you reconcile?"
-  - L3: "Design a migration process that makes this class of app/DB drift impossible."
-- **Candidate signals**:
-  - Green: fixes the generated column, adds a comment tying it to the JS function, proposes a contract test.
-  - Yellow: fixes the boundary without addressing drift.
-  - Red: changes the JS to match the DB.
-- **Estimated time-to-find**: ~20 min after #23 is fixed.
+**#18 — proxy.ts matcher too broad**
 
-#### #20 — si_flag uses >= instead of >
+- Diff: `["/((?!_next/static|_next/image|favicon.ico).*)"]` became `["/:path*"]`. Every `_next/static/*` request now instantiates a server Supabase client and walks the SSR session-refresh path.
+- Discovery: dev observation (Network tab + dev server logs show the middleware firing on asset requests). No automated assertion — a planned Playwright assertion was deemed flaky and removed.
+- Reproduce: `npm run dev`, open the Network tab, filter `_next/static/`, watch the dev server log a matcher hit per asset.
+- Primary probe: "How do you reason about middleware/proxy matchers for performance and correctness?"
+- L1: "What happens on every middleware invocation here?"
+- L2: "How would you measure the impact in prod?"
+- L3: "What's your mental model for ordering matcher negations when multiple proxies compose?"
+- Green: restores the asset exclusion and cites the Supabase SSR cost.
+- Yellow: restores it but cannot explain the cost.
+- Red: doesn't notice.
 
-- **Tier & Category**: Hard — DB generated columns.
-- **Plant location**: `supabase/migrations/0007_si_flag.sql` (new migration).
-- **Diff summary**: `si_flag boolean generated always as (coalesce(responses[9],0) >= 0) stored` — always true because non-negative integers are always `>= 0`. Should be `> 0`.
-- **Discovery paths**: guided integration test `tests/integration/phq9-si-flag.test.ts` — zeros-only row should have `si_flag === false`.
-- **Bucket**: guided-by-new-failing-test. Masked by #23 until fixed.
-- **Reproduce**: fix #23, then `npm run test:integration -- phq9-si-flag`.
-- **Primary probe**: "Comment your reasoning for inclusive vs exclusive in generated columns."
-- **Graduated follow-ups**:
-  - L1: "What clinical decision does `si_flag` drive?"
-  - L2: "If a clinician relied on this flag in a dashboard, what remediation do you owe past users?"
-  - L3: "How do you test generated-column semantics in CI so this cannot recur?"
-- **Candidate signals**:
-  - Green: fixes the operator, names the downstream user impact, suggests a test matrix of boundary values.
-  - Yellow: fixes without a downstream impact assessment.
-  - Red: doesn't notice the operator is inclusive.
-- **Estimated time-to-find**: ~20 min after #23 is fixed.
+### 4.4 Hard tier — details (#19-#24)
 
-#### #21 — Untyped JSONB cast on risk_assessment
+**#19 — severity_band generated column off-by-one**
 
-- **Tier & Category**: Hard — types / JSONB.
-- **Plant location**: writer at `app/notes/actions.ts` (`parseDraft`); reader at `app/notes/[id]/page.tsx:45`.
-- **Diff summary**: Writer renamed the first key from `si` to `suicidal` and widened the draft type to `Record<string, boolean>`. Reader casts `risk_assessment as any`, so `risk.si` silently reads as `undefined`. The rendered card says "SI: no" regardless of input.
-- **Discovery paths**: new Playwright assertion inside `intake-to-signed-note.spec.ts` — checks the "Suicidal ideation endorsed" box, signs, then asserts "SI: yes" is visible.
-- **Bucket**: guided-by-new-failing-test. Gated behind Plant #9 (intake textarea), so the candidate must repair #9 before the spec reaches this assertion.
-- **Reproduce**: fix #9, then `npx playwright test intake-to-signed-note`.
-- **Primary probe**: "Where should runtime JSONB parsing happen to keep writer and reader in sync?"
-- **Graduated follow-ups**:
-  - L1: "What is the exact bug — wrong key or wrong type?"
-  - L2: "Would you co-locate the Zod schema with the writer, reader, or a shared module?"
-  - L3: "How would you harden JSONB shape in a regulated product — schema, trigger, both?"
-- **Candidate signals**:
-  - Green: aligns writer/reader on a shared Zod schema and removes the `as any`.
-  - Yellow: renames one side without a shared type.
-  - Red: casts the reader to match `'suicidal'` and calls it done.
-- **Estimated time-to-find**: ~25 min after #9.
+- Diff: Drops and recreates the `severity_band` generated column with `between 0 and 3` for 'None'. The JS severity function still uses `<= 4`, so app and DB disagree on score 4.
+- Discovery: expanded case in `tests/integration/phq9.test.ts > maps each severity band` — specifically `[[1,1,0,1,1,0,0,0,0], 4, 'None']` — which asserts the DB returns "None" and fails with plant because DB returns "Mild". **Cascade note:** masked by #23 until fixed.
+- Reproduce: fix #23, then `npm run test:integration -- phq9`.
+- Primary probe: "The unit test asserts the JS `severityBand`; the integration test asserts the DB column. Where should the canonical version live?"
+- L1: "What are the trade-offs between computing severity in JS vs as a generated column?"
+- L2: "If they must disagree during a rollout, which side wins — and how do you reconcile?"
+- L3: "Design a migration process that makes this class of app/DB drift impossible."
+- Green: fixes the generated column, adds a comment tying it to the JS function, proposes a contract test.
+- Yellow: fixes the boundary without addressing drift.
+- Red: changes the JS to match the DB.
 
-#### #22 — Sign-and-lock AlertDialog replaced with plain div
+**#20 — si_flag uses >= instead of >**
 
-- **Tier & Category**: Hard — UI / accessibility.
-- **Plant location**: `app/notes/new/[appointmentId]/sign-confirm.tsx`.
-- **Diff summary**: Radix `AlertDialog.Root/Content/Cancel/Action` has been replaced with a `useState`-controlled `<div>` overlay. The button-by-name flow still works so existing E2E interactions succeed, but `role="alertdialog"`, focus trap, and ESC-to-dismiss are gone.
-- **Discovery paths**: new Playwright assertion `await expect(page.getByRole('alertdialog')).toBeVisible();` after opening the confirm overlay; AI review flags missing role.
-- **Bucket**: guided-by-new-failing-test. Gated behind earlier cascades.
-- **Reproduce**: fix #9 and any gating plants, then `npx playwright test intake-to-signed-note`.
-- **Primary probe**: "Walk me through the user cost of swapping a Radix primitive for a div."
-- **Graduated follow-ups**:
-  - L1: "What does `role='alertdialog'` provide that a `<div>` does not?"
-  - L2: "ESC-to-dismiss, focus trap, initial focus — how many of those do you get for free with Radix?"
-  - L3: "In a healthcare product, what's the governance story around shipping accessibility regressions?"
-- **Candidate signals**:
-  - Green: restores Radix AlertDialog, cites focus trap and ESC behaviour by name.
-  - Yellow: adds `role='alertdialog'` to the div and claims parity.
-  - Red: leaves the div and argues the test is too strict.
-- **Estimated time-to-find**: ~20 min after prerequisites.
+- Diff: `si_flag boolean generated always as (coalesce(responses[9],0) >= 0) stored` — always true because non-negative integers are always `>= 0`. Should be `> 0`.
+- Discovery: guided integration test `tests/integration/phq9-si-flag.test.ts` — zeros-only row should have `si_flag === false`. **Cascade note:** masked by #23 until fixed.
+- Reproduce: fix #23, then `npm run test:integration -- phq9-si-flag`.
+- Primary probe: "Comment your reasoning for inclusive vs exclusive in generated columns."
+- L1: "What clinical decision does `si_flag` drive?"
+- L2: "If a clinician relied on this flag in a dashboard, what remediation do you owe past users?"
+- L3: "How do you test generated-column semantics in CI so this cannot recur?"
+- Green: fixes the operator, names the downstream user impact, suggests a test matrix of boundary values.
+- Yellow: fixes without a downstream impact assessment.
+- Red: doesn't notice the operator is inclusive.
 
-#### #23 — seeded_clinician_id() returns wrong UUID
+**#21 — Untyped JSONB cast on risk_assessment**
 
-- **Tier & Category**: Hard — RLS / security.
-- **Plant location**: `supabase/migrations/0008_wrong_seed_uuid.sql` (new migration).
-- **Diff summary**: Function body replaced with `select '11111111-1111-1111-1111-111111111112'::uuid` — trailing `2`. Every anon query now returns zero rows because no seeded clinician matches. Dashboard is empty; `clients.test.ts` `beforeAll` fails; E2E navigation sees empty lists.
-- **Discovery paths**: any suite touching seed data — the integration suite `clients.test.ts` fails first. Playwright dashboard is visibly empty.
-- **Bucket**: breaks-existing-tests. This plant masks #15, #16, #19, and #20 until repaired — intentional single-point blast radius.
-- **Reproduce**: `npm run test:integration -- clients` or `npm run dev` and observe an empty dashboard.
-- **Primary probe**: "One SQL function, one typo, every suite red. What alerting catches this class in production?"
-- **Graduated follow-ups**:
-  - L1: "Where is this UUID defined elsewhere, and which source is authoritative?"
-  - L2: "If this were a real auth model, what's the right way to scope RLS without a literal UUID?"
-  - L3: "Design a contract test that keeps `lib/constants.ts`, `supabase/seed.sql`, and `seeded_clinician_id()` in lockstep."
-- **Candidate signals**:
-  - Green: finds the function fast, fixes the UUID, notices the cascade unmask, reruns suites.
-  - Yellow: patches `lib/constants.ts` instead of the SQL function.
-  - Red: can't correlate empty results with RLS at all.
-- **Estimated time-to-find**: ~18 min — but the blast radius makes it very obvious something is wrong.
+- Diff: Writer renamed the first key from `si` to `suicidal` and widened the draft type to `Record<string, boolean>`. Reader casts `risk_assessment as any`, so `risk.si` silently reads as `undefined`. The rendered card says "SI: no" regardless of input.
+- Discovery: new Playwright assertion inside `intake-to-signed-note.spec.ts` — checks the "Suicidal ideation endorsed" box, signs, then asserts "SI: yes" is visible. **Cascade note:** gated behind Plant #9 (intake textarea); candidate must repair #9 before the spec reaches this assertion.
+- Reproduce: fix #9, then `npx playwright test intake-to-signed-note`.
+- Primary probe: "Where should runtime JSONB parsing happen to keep writer and reader in sync?"
+- L1: "What is the exact bug — wrong key or wrong type?"
+- L2: "Would you co-locate the Zod schema with the writer, reader, or a shared module?"
+- L3: "How would you harden JSONB shape in a regulated product — schema, trigger, both?"
+- Green: aligns writer/reader on a shared Zod schema and removes the `as any`.
+- Yellow: renames one side without a shared type.
+- Red: casts the reader to match `'suicidal'` and calls it done.
 
-#### #24 — Latent out-of-bounds in week view
+**#22 — Sign-and-lock AlertDialog replaced with plain div**
 
-- **Tier & Category**: Hard — types / defensive coding.
-- **Plant location**: code change at `app/appointments/page.tsx:39`; activator in `supabase/seed.sql`.
-- **Diff summary**: Code change turned `byDay[k]?.push(a)` into `byDay[k].push(a)`. Seed activator added a fourth appointment at `+ interval '8 days 10 hour'` (outside the current week). The day-key for that appointment is not in `byDay`, so the push crashes. Because the inferred `byDay` value type includes `null`, `npm run build` also trips on the non-null assertion implied by removing the optional chain.
-- **Discovery paths**: dev (week view renders a `TypeError: Cannot read properties of undefined (reading 'push')`); `npm run build`.
-- **Bucket**: slips-past. No automated test drives the week view; `noUncheckedIndexedAccess` would catch the OOB separately if enabled.
-- **Reproduce**: `npm run dev`, navigate to `/appointments`; or `npm run build`.
-- **Primary probe**: "Which `tsconfig` knobs pay for themselves in a healthcare codebase?"
-- **Graduated follow-ups**:
-  - L1: "What does the optional chain here actually protect against?"
-  - L2: "Why does removing `?.` make the build fail rather than just crash at runtime?"
-  - L3: "Design the tsconfig you'd ship for this product, with reasons for each strict flag."
-- **Candidate signals**:
-  - Green: restores the optional chain AND asks about `noUncheckedIndexedAccess`.
-  - Yellow: restores the chain but doesn't follow the chain back to the seed activator.
-  - Red: initialises `byDay[k] = []` inside the loop without understanding why.
-- **Estimated time-to-find**: ~22 min.
+- Diff: Radix `AlertDialog.Root/Content/Cancel/Action` has been replaced with a `useState`-controlled `<div>` overlay. The button-by-name flow still works so existing E2E interactions succeed, but `role="alertdialog"`, focus trap, and ESC-to-dismiss are gone.
+- Discovery: new Playwright assertion `await expect(page.getByRole('alertdialog')).toBeVisible();` after opening the confirm overlay; AI review flags missing role. **Cascade note:** gated behind earlier cascades.
+- Reproduce: fix #9 and any gating plants, then `npx playwright test intake-to-signed-note`.
+- Primary probe: "Walk me through the user cost of swapping a Radix primitive for a div."
+- L1: "What does `role='alertdialog'` provide that a `<div>` does not?"
+- L2: "ESC-to-dismiss, focus trap, initial focus — how many of those do you get for free with Radix?"
+- L3: "In a healthcare product, what's the governance story around shipping accessibility regressions?"
+- Green: restores Radix AlertDialog, cites focus trap and ESC behaviour by name.
+- Yellow: adds `role='alertdialog'` to the div and claims parity.
+- Red: leaves the div and argues the test is too strict.
+
+**#23 — seeded_clinician_id() returns wrong UUID**
+
+- Diff: Function body replaced with `select '11111111-1111-1111-1111-111111111112'::uuid` — trailing `2`. Every anon query now returns zero rows because no seeded clinician matches. Dashboard is empty; `clients.test.ts` `beforeAll` fails; E2E navigation sees empty lists.
+- Discovery: any suite touching seed data — the integration suite `clients.test.ts` fails first. Playwright dashboard is visibly empty. **Cascade note:** this plant masks #15, #16, #19, and #20 until repaired — intentional single-point blast radius.
+- Reproduce: `npm run test:integration -- clients` or `npm run dev` and observe an empty dashboard.
+- Primary probe: "One SQL function, one typo, every suite red. What alerting catches this class in production?"
+- L1: "Where is this UUID defined elsewhere, and which source is authoritative?"
+- L2: "If this were a real auth model, what's the right way to scope RLS without a literal UUID?"
+- L3: "Design a contract test that keeps `lib/constants.ts`, `supabase/seed.sql`, and `seeded_clinician_id()` in lockstep."
+- Green: finds the function fast, fixes the UUID, notices the cascade unmask, reruns suites.
+- Yellow: patches `lib/constants.ts` instead of the SQL function.
+- Red: can't correlate empty results with RLS at all.
+
+**#24 — Latent out-of-bounds in week view**
+
+- Diff: Code change turned `byDay[k]?.push(a)` into `byDay[k].push(a)`. Seed activator added a fourth appointment at `+ interval '8 days 10 hour'` (outside the current week). The day-key for that appointment is not in `byDay`, so the push crashes. Because the inferred `byDay` value type includes `null`, `npm run build` also trips on the non-null assertion implied by removing the optional chain.
+- Discovery: dev (week view renders a `TypeError: Cannot read properties of undefined (reading 'push')`); `npm run build`.
+- Reproduce: `npm run dev`, navigate to `/appointments`; or `npm run build`. `noUncheckedIndexedAccess` would catch the OOB separately if enabled.
+- Primary probe: "Which `tsconfig` knobs pay for themselves in a healthcare codebase?"
+- L1: "What does the optional chain here actually protect against?"
+- L2: "Why does removing `?.` make the build fail rather than just crash at runtime?"
+- L3: "Design the tsconfig you'd ship for this product, with reasons for each strict flag."
+- Green: restores the optional chain AND asks about `noUncheckedIndexedAccess`.
+- Yellow: restores the chain but doesn't follow the chain back to the seed activator.
+- Red: initialises `byDay[k] = []` inside the loop without understanding why.
 
 ## 5. Appendix A — Test-command cheatsheet
 
