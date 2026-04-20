@@ -48,7 +48,7 @@ export function severityBand(total: number): PHQ9SeverityBand {
   if (!Number.isInteger(total) || total < 0 || total > 27) {
     throw new Error(`PHQ-9 total must be an integer in 0..27 (got ${total})`);
   }
-  if (total <= 4) return "None";
+  if (total < 4) return "None";
   if (total <= 9) return "Mild";
   if (total <= 14) return "Moderate";
   if (total <= 19) return "Moderately Severe";

@@ -1,40 +1,57 @@
 "use client";
 
-import { AlertDialog, Button, Flex } from "@radix-ui/themes";
+import { useState } from "react";
+import { Button, Flex, Heading, Text } from "@radix-ui/themes";
 
 export function SignNoteConfirm() {
+  const [open, setOpen] = useState(false);
   return (
-    <AlertDialog.Root>
-      <AlertDialog.Trigger>
-        <Button type="button" color="green">Sign &amp; lock note</Button>
-      </AlertDialog.Trigger>
-      <AlertDialog.Content>
-        <AlertDialog.Title>Sign and lock this note?</AlertDialog.Title>
-        <AlertDialog.Description size="2">
-          Once signed, the note becomes read-only. Further changes must be entered as addendums.
-          This matches how clinical documentation software handles the legal record.
-        </AlertDialog.Description>
-        <Flex justify="end" gap="3" mt="4">
-          <AlertDialog.Cancel>
-            <Button variant="soft" color="gray">Cancel</Button>
-          </AlertDialog.Cancel>
-          {/* form="newNoteForm" lets this submit button live inside the dialog
-              portal while still submitting the sibling form. Setting
-              name=intent value=sign signals the server action to mark
-              signed_at + locked in a single UPDATE. */}
-          <AlertDialog.Action>
-            <Button
-              type="submit"
-              form="newNoteForm"
-              name="intent"
-              value="sign"
-              color="green"
-            >
-              Yes, sign &amp; lock
-            </Button>
-          </AlertDialog.Action>
-        </Flex>
-      </AlertDialog.Content>
-    </AlertDialog.Root>
+    <>
+      <Button type="button" color="green" onClick={() => setOpen(true)}>
+        Sign &amp; lock note
+      </Button>
+      {open && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            background: "rgba(0,0,0,0.4)",
+            zIndex: 50,
+          }}
+        >
+          <div
+            style={{
+              background: "white",
+              padding: "24px",
+              borderRadius: 8,
+              maxWidth: 420,
+              boxShadow: "0 8px 24px rgba(0,0,0,0.2)",
+            }}
+          >
+            <Heading size="4" mb="2">Sign and lock this note?</Heading>
+            <Text size="2" as="p" mb="4">
+              Once signed, the note becomes read-only. Further changes must be entered as addendums.
+            </Text>
+            <Flex justify="end" gap="3" mt="4">
+              <Button variant="soft" color="gray" onClick={() => setOpen(false)}>
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                form="newNoteForm"
+                name="intent"
+                value="sign"
+                color="green"
+              >
+                Yes, sign &amp; lock
+              </Button>
+            </Flex>
+          </div>
+        </div>
+      )}
+    </>
   );
 }

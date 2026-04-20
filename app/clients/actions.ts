@@ -46,7 +46,7 @@ export async function createClientAction(formData: FormData) {
 
 export async function updateClientStatusAction(clientId: string, status: string) {
   const sb = await createSupabaseServerClient();
-  const { error } = await sb.from("clients").update({ status: status as "active" | "inactive" | "waitlist" | "discharged" }).eq("id", clientId);
+  const { error } = await sb.from("clients").update({ status }).eq("id", clientId);
   if (error) throw new Error(error.message);
   revalidatePath(`/clients/${clientId}`);
   revalidatePath("/clients");

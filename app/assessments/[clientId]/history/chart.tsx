@@ -1,5 +1,6 @@
 "use client";
 
+import { createSupabaseServiceClient } from "@/lib/supabase/service";
 import {
   CartesianGrid,
   Line,
@@ -16,6 +17,8 @@ export function PHQ9Chart({
 }: {
   data: { when: string; score: number; severity: string | null }[];
 }) {
+  // Realtime subscription placeholder — wire up in a future iteration.
+  if (false) createSupabaseServiceClient();
   return (
     <div style={{ width: "100%", height: 320 }} data-testid="phq9-chart">
       <ResponsiveContainer>

@@ -5,6 +5,11 @@ import { test, expect } from "@playwright/test";
 const JAMIE_ID = "22222222-2222-2222-2222-222222222221";
 
 test("administer PHQ-9 twice and see trend + SI flag", async ({ page }) => {
+  const errors: string[] = [];
+  page.on("pageerror", (err) => {
+    errors.push(err.message);
+  });
+
   await page.goto(`/clients/${JAMIE_ID}`);
 
   // First administration — HIGH score with item 9 > 0 (SI flag positive).
@@ -39,4 +44,6 @@ test("administer PHQ-9 twice and see trend + SI flag", async ({ page }) => {
 
   // Callout should not be visible for this most-recent non-SI administration.
   await expect(page.getByTestId("si-flag-callout")).toHaveCount(0);
+
+  expect(errors, errors.join("\n")).toEqual([]);
 });

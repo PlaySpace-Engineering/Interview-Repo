@@ -47,12 +47,15 @@ export default async function ClientsPage({
 
       <Card>
         <form>
-          <TextField.Root
-            name="q"
-            defaultValue={q ?? ""}
-            placeholder="Search by name…"
-            size="3"
-          />
+          <Flex direction="column" gap="2">
+            <Text size="2" weight="medium">Search</Text>
+            <TextField.Root
+              name="q"
+              defaultValue={q ?? ""}
+              placeholder="Search by name…"
+              size="3"
+            />
+          </Flex>
         </form>
       </Card>
 

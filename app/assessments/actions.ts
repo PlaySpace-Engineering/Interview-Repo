@@ -11,7 +11,7 @@ export async function submitPHQ9Action(clientId: string, formData: FormData) {
     const v = formData.get(`q${i}`);
     if (v === null) throw new Error(`Missing response for item ${i + 1}`);
     const n = Number(v);
-    if (!Number.isInteger(n) || n < 0 || n > 3) {
+    if (Number.isNaN(n) || n < 0 || n > 3) {
       throw new Error(`Invalid response for item ${i + 1}`);
     }
     responses.push(n);

@@ -42,7 +42,7 @@ export default async function NoteDetailPage({
     .order("created_at", { ascending: true });
 
   const content = note.content as Record<string, string>;
-  const risk = note.risk_assessment as { si: boolean; hi: boolean; self_harm: boolean };
+  const risk = note.risk_assessment as any;
   const sections =
     note.format === "SOAP"
       ? (["subjective", "objective", "assessment", "plan"] as const)
